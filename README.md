@@ -1,6 +1,8 @@
 # BrickMyBoard
 
-A native macOS app for locking physical keyboards, one at a time or all at once. Use it to type on an external keyboard placed on top of your MacBook, or to wipe a keyboard and screen clean without typing anything.
+A native app for locking physical keyboards, one at a time or all at once. Use it to type on an external keyboard placed on top of your laptop, or to wipe a keyboard and screen clean without typing anything.
+
+The macOS app lives at the top of this repository; the Windows app lives in [`windows/`](windows/). See [Windows](#windows) below.
 
 ## Install
 
@@ -71,5 +73,54 @@ Requires Xcode's command-line tools. Run `./build.command` to compile the Swift 
 ## Status
 
 The self-checks pass. They cover the logic but not real hardware: locking a physical keyboard, the cleaning exit combo and Touch ID are checked by hand.
+
+## Windows
+
+The same app for Windows 10 and 11, in [`windows/`](windows/): a single `BrickMyBoard.exe` with the same pages (Keyboards, Cleaning, Automation, Shortcuts, Activity, Settings), a tray icon instead of the menu bar, and the same safety rules.
+
+### Install
+
+Build it (below) or download `BrickMyBoard-windows.zip` from the latest release, unzip it anywhere, and run **BrickMyBoard.exe**. Nothing is installed; delete the folder to remove it. Windows SmartScreen may warn on first launch because the app is not signed: choose **More info → Run anyway**.
+
+Requires Windows 10 or later with .NET Framework 4.8, which both Windows 10 and 11 include.
+
+### Build
+
+Run `windows\build.cmd`. It needs nothing beyond Windows itself: it compiles the C# sources with the compiler that ships with .NET Framework 4.8, generates the icon from `Assets/AppIcon.png`, and runs the self-checks and a device listing.
+
+- `windows/KeyboardLock.cs`: keyboard discovery, the lock protocol, the input filter and the helper.
+- `windows/App.cs`: app lifecycle, control session, tray icon, cleaning mode, automation, shortcuts, settings.
+- `windows/Views.cs`: the WinForms window and the cleaning overlay.
+- `windows/Checks.cs`: regression checks (`BrickMyBoard.exe --self-test`). `BrickMyBoard.exe --check` lists keyboards.
+
+### How a lock works on Windows
+
+Windows has no equivalent of macOS's exclusive device open, so BrickMyBoard uses the two input APIs together: **Raw Input** reports which physical keyboard every key came from, and a **low-level keyboard hook** stops the key from going any further when that keyboard is locked. The filter runs in a short-lived helper process; Windows removes the hook the instant the helper ends, so a crashed or killed helper can never leave a keyboard locked. Key releases always pass through so no key is left stuck down, and injected input (on-screen keyboard, remote desktop) is never blocked.
+
+The helper asks for administrator approval (a UAC prompt) once per app session, so locks also cover windows that run as administrator. Turn that off in **Settings** to skip the prompt; locks then still work for normal windows, but keys on a locked keyboard can reach windows that run as administrator. Either way the helper runs as you, uses a private named pipe that only your account can open, exchanges bounded, validated messages, and exits when the app's side of the pipe closes.
+
+Built-in keyboards are the ones Windows reports as non-removable and not on USB or Bluetooth. On many laptops the internal keyboard appears as **Standard PS/2 Keyboard**, sometimes next to a second built-in **HID Keyboard Device** for the function row.
+
+### Cleaning mode
+
+Same as on the Mac, with the exit combo mapped to **both Ctrl keys**: hold left Ctrl and right Ctrl, and nothing else, for 2 seconds. Every screen goes black and the display stays awake. Ctrl+Alt+Del, Win+L and the UAC secure desktop are handled by Windows outside any app and keep working.
+
+### Controls
+
+Everything on the macOS list applies, with these differences:
+
+- **Tray icon:** replaces the menu bar. Right-click for per-keyboard toggles, Lock selected, Unlock all, cleaning, ending the authorization, and Quit. Double-click opens the window. Closing the window keeps the app in the tray.
+- **Shortcuts:** default **Ctrl+Alt+Win+K** (toggle selected) and **Ctrl+Alt+Win+U** (unlock all). Click a shortcut to record a new one with at least two of Ctrl, Alt, Shift and Win.
+- **Open at sign-in:** a `Run` entry under your user account, off by default.
+- **Settings** are stored under `HKEY_CURRENT_USER\Software\BrickMyBoard`. Crash details, if any, go to `%LOCALAPPDATA%\BrickMyBoard\crash.log`.
+- **Sleep, locking the screen or disconnecting the session** ends the control session and releases every keyboard.
+
+### Limits
+
+- A low-level hook cannot reach the secure desktop (Ctrl+Alt+Del, UAC prompts, the sign-in screen). That is by design on Windows and also means you can always get out.
+- Keys that the keyboard firmware handles itself (brightness, airplane mode, some Fn combinations) never reach Windows and are not affected.
+- Precision touchpad gestures can still trigger Windows actions during cleaning; the black overlay stays on top of them.
+- Remote Desktop and other virtual keyboards are not listed and are never blocked.
+- The self-checks cover the logic, not hardware. Verify a lock with a 30-second timer in an empty document before relying on it, exactly as on the Mac.
 
 References: [Apple’s device-open API](https://developer.apple.com/documentation/iokit/1588670-iohiddeviceopen), [Input Monitoring access](https://developer.apple.com/documentation/iokit/3181574-iohidrequestaccess), and [native login-item service](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp).
