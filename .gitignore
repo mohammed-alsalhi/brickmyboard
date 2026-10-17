@@ -3,3 +3,6 @@
 /BrickMyBoard.app
 /Assets/AppIcon.iconset
 *.zip
+/windows/BrickMyBoard.exe
+/windows/BrickMyBoard.exe.config
+/windows/AppIcon.ico
