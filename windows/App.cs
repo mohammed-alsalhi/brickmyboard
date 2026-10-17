@@ -120,6 +120,7 @@ namespace BrickMyBoard
 
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 150 };
         readonly NotifyIcon tray = new NotifyIcon();
+        TrayPopup popup;
         readonly HotkeyWindow hotkeys = new HotkeyWindow();
         readonly List<CleaningOverlay> overlays = new List<CleaningOverlay>();
         readonly Queue<string> incoming = new Queue<string>();
@@ -177,9 +178,9 @@ namespace BrickMyBoard
             Context.MainForm = null; // Closing the window keeps the app in the tray.
             tray.Icon = Window.Icon;
             tray.Visible = true;
-            tray.DoubleClick += (s, e) => ShowWindow();
-            tray.ContextMenuStrip = new ContextMenuStrip();
-            tray.ContextMenuStrip.Opening += (s, e) => BuildTrayMenu();
+            popup = new TrayPopup(this);
+            tray.MouseClick += (s, e) => { RefreshDevices(); if (popup.Visible) popup.Hide(); else popup.ShowNear(Cursor.Position); };
+            tray.DoubleClick += (s, e) => { popup.Hide(); ShowWindow(); };
             hotkeys.Pressed += id => { if (id == 1) ToggleSelectedShortcut(); else if (id == 2) UnlockAll(); };
             InstallHotKeys();
             RefreshDevices();
@@ -375,6 +376,7 @@ namespace BrickMyBoard
         void ShowCleaning()
         {
             CleaningPending = false; Cleaning = true;
+            if (popup != null) popup.Hide();
             CleaningEnds = DateTime.Now.AddMinutes(CleaningMinutes);
             foreach (var screen in Screen.AllScreens)
             {
@@ -592,30 +594,6 @@ namespace BrickMyBoard
         {
             tray.Text = "BrickMyBoard · " + Locks.Count + " locked";
         }
-        void BuildTrayMenu()
-        {
-            RefreshDevices();
-            var menu = tray.ContextMenuStrip;
-            menu.Items.Clear();
-            menu.Items.Add("Open BrickMyBoard", null, (s, e) => ShowWindow());
-            menu.Items.Add(new ToolStripSeparator());
-            if (Devices.Count == 0) menu.Items.Add(new ToolStripMenuItem("No keyboards found") { Enabled = false });
-            foreach (var device in Devices)
-            {
-                var id = device.Id;
-                var locked = Locks.ContainsKey(id);
-                var item = new ToolStripMenuItem("Lock " + device.DisplayName) { Checked = locked, Enabled = locked || !Busy };
-                item.Click += (s, e) => { if (locked) Unlock(new List<string> { id }); else Lock(new List<string> { id }); };
-                menu.Items.Add(item);
-            }
-            menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("Lock selected", null, (s, e) => LockSelected()) { Enabled = !Busy && Selected.Any(id => !Locks.ContainsKey(id)) });
-            menu.Items.Add(new ToolStripMenuItem("Unlock all", null, (s, e) => UnlockAll()) { Enabled = Locks.Count > 0 || Phase == "authorizing" });
-            menu.Items.Add(new ToolStripMenuItem("Clean for " + CleaningMinutes + " min", null, (s, e) => StartCleaning()) { Enabled = !Busy && !Cleaning && Devices.Count > 0 });
-            menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("End authorization", null, (s, e) => EndSession()) { Enabled = Phase != "offline" });
-            menu.Items.Add("Quit", null, (s, e) => Quit());
-        }
 
         // MARK: Shortcuts
 
@@ -728,6 +706,7 @@ namespace BrickMyBoard
             SystemEvents.SessionSwitch -= OnSessionSwitch;
             EndSession(); CleanUp(); UnregisterHotKeys();
             tray.Visible = false; tray.Dispose();
+            if (popup != null) popup.Dispose();
             hotkeys.DestroyHandle();
             showSignal.Dispose();
         }

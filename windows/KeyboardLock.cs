@@ -22,9 +22,10 @@ namespace BrickMyBoard
         public int Vendor;
         public int Product;
         public IntPtr Handle;      // Raw Input device handle; valid only within one process and until disconnect.
+        public bool Converted;     // Hotkey buttons that Windows presents as a keyboard; hidden from the list.
 
         public string Connection { get { return BuiltIn ? "Built-in" : (Transport.Length == 0 ? "External" : Transport); } }
-        public string DisplayName { get { return Name; } }
+        public string DisplayName { get { return BuiltIn ? "Built-in Keyboard" : Name; } }
 
         public bool Equals(Keyboard other)
         {
@@ -297,7 +298,17 @@ namespace BrickMyBoard
                 current = parent;
             }
             Classify(Native.UIntProperty(devInst, Native.RemovalPolicy), enumerators, out keyboard.BuiltIn, out keyboard.Transport);
+            keyboard.Converted = IsConverted(enumerators);
             return keyboard;
+        }
+
+        /// <summary>
+        /// Windows turns a laptop's hotkey buttons (Intel HID Event Filter, "ButtonConverter") into a keyboard-class device.
+        /// It is not a keyboard anyone types on, so it is hidden like a virtual device.
+        /// </summary>
+        public static bool IsConverted(IEnumerable<string> enumerators)
+        {
+            return enumerators.Any(e => (e ?? "").ToUpperInvariant() == "BUTTONCONVERTER" || (e ?? "").ToUpperInvariant().Contains("CONVERTEDDEVICE"));
         }
 
         /// <summary>Every physical keyboard Windows currently delivers Raw Input for, sorted built-in first.</summary>
@@ -318,7 +329,8 @@ namespace BrickMyBoard
                 if (Native.GetRawInputDeviceInfo(entry.hDevice, Native.RIDI_DEVICENAME, builder, ref length) == uint.MaxValue) continue;
                 var id = InstanceId(builder.ToString());
                 if (id == null || IsVirtual(id) || result.Any(k => k.Id == id)) continue;
-                result.Add(Describe(id, entry.hDevice));
+                var keyboard = Describe(id, entry.hDevice);
+                if (!keyboard.Converted) result.Add(keyboard);
             }
             return result.OrderBy(k => k.BuiltIn ? 0 : 1).ThenBy(k => k.Name, StringComparer.OrdinalIgnoreCase).ThenBy(k => k.Id, StringComparer.Ordinal).ToList();
         }

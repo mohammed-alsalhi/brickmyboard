@@ -99,7 +99,7 @@ Windows has no equivalent of macOS's exclusive device open, so BrickMyBoard uses
 
 The helper asks for administrator approval (a UAC prompt) once per app session, so locks also cover windows that run as administrator. Turn that off in **Settings** to skip the prompt; locks then still work for normal windows, but keys on a locked keyboard can reach windows that run as administrator. Either way the helper runs as you, uses a private named pipe that only your account can open, exchanges bounded, validated messages, and exits when the app's side of the pipe closes.
 
-Built-in keyboards are the ones Windows reports as non-removable and not on USB or Bluetooth. On many laptops the internal keyboard appears as **Standard PS/2 Keyboard**, sometimes next to a second built-in **HID Keyboard Device** for the function row.
+Built-in keyboards are the ones Windows reports as non-removable and not on USB or Bluetooth. Many laptops also expose their hotkey buttons (Intel HID Event Filter, "ButtonConverter") as a keyboard-class **HID Keyboard Device**; nobody types on it, so it is hidden like the Remote Desktop keyboard. `BrickMyBoard.exe --check` lists what the app sees.
 
 ### Cleaning mode
 
@@ -109,7 +109,8 @@ Same as on the Mac, with the exit combo mapped to **both Ctrl keys**: hold left 
 
 Everything on the macOS list applies, with these differences:
 
-- **Tray icon:** replaces the menu bar. Right-click for per-keyboard toggles, Lock selected, Unlock all, cleaning, ending the authorization, and Quit. Double-click opens the window. Closing the window keeps the app in the tray.
+- **Tray icon:** replaces the menu bar. Click it for the same popover as on the Mac: status, a switch per keyboard, Lock selected, Unlock all, cleaning, Open and Quit. Double-click opens the window. Closing the window keeps the app in the tray.
+- **Window:** the same layout as the Mac app, drawn without a title bar. Drag the top strip to move it; the minimize, maximize and close buttons sit at the top right. Light appearance only.
 - **Shortcuts:** default **Ctrl+Alt+Win+K** (toggle selected) and **Ctrl+Alt+Win+U** (unlock all). Click a shortcut to record a new one with at least two of Ctrl, Alt, Shift and Win.
 - **Open at sign-in:** a `Run` entry under your user account, off by default.
 - **Settings** are stored under `HKEY_CURRENT_USER\Software\BrickMyBoard`. Crash details, if any, go to `%LOCALAPPDATA%\BrickMyBoard\crash.log`.

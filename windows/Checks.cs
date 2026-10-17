@@ -42,6 +42,7 @@ namespace BrickMyBoard
             Expect(!builtIn && transport == "Bluetooth", "Bluetooth keyboard");
             Devices.Classify(null, new[] { "HID" }, out builtIn, out transport);
             Expect(!builtIn && transport == "", "unknown policy is treated as external");
+            Expect(Devices.IsConverted(new[] { "HID", "BUTTONCONVERTER", "HID", "ACPI" }) && !Devices.IsConverted(new[] { "ACPI", "PCI" }) && !Devices.IsConverted(new[] { "HID", "USB" }), "converted hotkey devices are hidden");
 
             var internalKeyboard = new Keyboard { Id = @"ACPI\A\1", Name = "Internal", BuiltIn = true, Transport = "" };
             var external = new Keyboard { Id = @"HID\B\2", Name = "External", BuiltIn = false, Transport = "USB" };
